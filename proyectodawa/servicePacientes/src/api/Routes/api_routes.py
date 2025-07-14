@@ -191,6 +191,8 @@ def load_routes(api):
     #=====================================================================
     #metodo para consultar las sesiones disponibles de un paciente
     api.add_resource(PatientAvailableSessions, '/scheduling/patient-sessions')
+    #metodo para consultar las sesiones disponibles de un paciente
+    api.add_resource(PatientAvailableSessionsWOState, '/scheduling/patient-sessions-wostate')
     #metodo para agendar una sesion de terapia
     api.add_resource(ScheduleSession, '/scheduling/schedule-session')
     #metodo para consultar las sesiones agendadas de un paciente

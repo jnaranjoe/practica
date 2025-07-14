@@ -1926,7 +1926,7 @@ class PaymentComponent:
         result, data, message = False, None, None
         try:
             sql = """
-                INSERT INTO ceragen.admin_invoice_payment
+                INSERT INTO ceragen.admin_invoice_payment 
                 (inp_invoice_id, inp_payment_method_id, inp_amount, inp_reference, inp_proof_image_path, user_created, date_created)
                 VALUES (%s, %s, %s, %s, %s, %s, NOW())
             """
@@ -1935,7 +1935,7 @@ class PaymentComponent:
                 datos['inp_payment_method_id'],
                 datos['inp_amount'],
                 datos.get('inp_reference'),
-                datos.get('inp_proof_image_path'),
+                datos.get('inp_proof_image_path'), # <-- ruta del archivo
                 user
             )
             data_NonQuery = DataBaseHandle.ExecuteNonQuery(sql, record)
@@ -1953,7 +1953,7 @@ class PaymentComponent:
         result, data, message = False, None, None
         try:
             sql = """
-                SELECT ip.inp_id, ip.inp_amount, ip.inp_reference, pm.pme_name as payment_method, ip.date_created
+                SELECT ip.inp_id, ip.inp_amount, ip.inp_reference, pm.pme_name as payment_method, ip.inp_proof_image_path, ip.date_created
                 FROM ceragen.admin_invoice_payment ip
                 JOIN ceragen.admin_payment_method pm ON ip.inp_payment_method_id = pm.pme_id
                 WHERE ip.inp_invoice_id = %s AND ip.inp_state = true
@@ -1961,11 +1961,11 @@ class PaymentComponent:
             record = (invoice_id,)
             resultado = DataBaseHandle.getRecords(sql, 0, record)
             if resultado['result']:
-                # Itera sobre cada fila para convertir tipos de datos no serializables
                 for row in resultado['data']:
                     # Convierte Decimal a float
                     if isinstance(row.get('inp_amount'), Decimal):
                         row['inp_amount'] = float(row['inp_amount'])
+                    # Convierte datetime a string
                     if isinstance(row.get('date_created'), datetime):
                         row['date_created'] = row['date_created'].isoformat()
                 
@@ -1981,27 +1981,35 @@ class PaymentComponent:
     def update(datos, user):
         result, data, message = False, None, None
         try:
-            sql = """
-                UPDATE ceragen.admin_invoice_payment SET
-                inp_invoice_id = %s,
-                inp_payment_method_id = %s,
-                inp_amount = %s,
-                inp_reference = %s,
-                inp_proof_image_path = %s,
-                user_modified = %s,
-                date_modified = NOW()
-                WHERE inp_id = %s
-            """
-            record = (
+            # Construimos la consulta SQL dinámicamente
+            sql_parts = [
+                "inp_invoice_id = %s",
+                "inp_payment_method_id = %s",
+                "inp_amount = %s",
+                "inp_reference = %s",
+                "user_modified = %s",
+                "date_modified = NOW()"
+            ]
+            record_list = [
                 datos['inp_invoice_id'],
                 datos['inp_payment_method_id'],
                 datos['inp_amount'],
                 datos.get('inp_reference'),
-                datos.get('inp_proof_image_path'),
-                user,
-                datos['inp_id']
-            )
-            data_NonQuery = DataBaseHandle.ExecuteNonQuery(sql, record)
+                user
+            ]
+            
+            # Si se proporciona una nueva ruta de imagen, la añadimos a la consulta
+            if 'inp_proof_image_path' in datos and datos['inp_proof_image_path'] is not None:
+                sql_parts.append("inp_proof_image_path = %s")
+                record_list.append(datos['inp_proof_image_path'])
+
+            # El ID del pago siempre va al final para la cláusula WHERE
+            record_list.append(datos['inp_id'])
+
+            # Unimos las partes de la consulta
+            sql = f"UPDATE ceragen.admin_invoice_payment SET {', '.join(sql_parts)} WHERE inp_id = %s"
+            
+            data_NonQuery = DataBaseHandle.ExecuteNonQuery(sql, tuple(record_list))
             if data_NonQuery['result']:
                 result, data = True, data_NonQuery['data']
             else:

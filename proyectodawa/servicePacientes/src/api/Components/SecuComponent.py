@@ -1157,13 +1157,16 @@ class PatientComponent:
                        ap.per_names,
                        ap.per_surnames,
                        pat_medical_conditions,
+                       pat_code,
                        pat_allergies,
                        pat_blood_type,
+                       cbt.btp_type,
                        pat_emergency_contact_name,
                        pat_emergency_contact_phone,
                        pat_state
                 FROM ceragen.admin_patient
                 left join ceragen.admin_person ap on admin_patient.pat_person_id = ap.per_id
+                left join ceragen.clinic_blood_type cbt on admin_patient.pat_blood_type = cbt.btp_id
             """
             resultado = DataBaseHandle.getRecords(sql, 0)
             if resultado['result']:
@@ -1212,6 +1215,7 @@ class PatientComponent:
             sql = """
                 UPDATE ceragen.admin_patient SET
                 pat_medical_conditions = %s,
+                pat_code = %s,
                 pat_allergies = %s,
                 pat_blood_type = %s,
                 pat_emergency_contact_name = %s,
@@ -1220,6 +1224,7 @@ class PatientComponent:
             """
             record = (
                 datos['pat_medical_conditions'],
+                datos['pat_code'],
                 datos['pat_allergies'],
                 datos['pat_blood_type'],
                 datos['pat_emergency_contact_name'],
@@ -2058,6 +2063,44 @@ class SchedulingComponent:
 
             if not result['result']:
                 raise Exception(f"Error al obtener las sesiones del paciente: {result['message']}")
+
+            return internal_response(True, result['data'], "Sesiones disponibles del paciente obtenidas exitosamente.")
+        except Exception as err:
+            message = str(err)
+            HandleLogs.write_error(message)
+            return internal_response(False, None, message)
+    
+    @staticmethod
+    def get_available_sessions_for_patient_WOState(patient_id):
+        try:
+            sql = """
+                SELECT
+                    sc.sec_id,
+                    inv.inv_number,
+                    prod.pro_name,
+                    sc.sec_ses_number,
+                    sc.date_modified -- Este es el campo que causa el error
+                FROM ceragen.admin_invoice inv
+                JOIN ceragen.clinic_session_control sc ON inv.inv_id = sc.sec_inv_id
+                JOIN ceragen.admin_product prod ON sc.sec_pro_id = prod.pro_id
+                WHERE inv.inv_patient_id = %s -- Se usa el parámetro en lugar de un valor fijo
+                  AND sc.ses_consumed = true
+                  AND sc.sec_ses_agend_date IS NOT NULL
+                ORDER BY sc.sec_id;
+            """
+            # Se corrige para usar el patient_id que llega como parámetro
+            record = (patient_id,)
+            result = DataBaseHandle.getRecords(sql, 0, record)
+
+            if not result['result']:
+                raise Exception(f"Error al obtener las sesiones del paciente: {result['message']}")
+
+            # --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+            # Se itera sobre los resultados para convertir la fecha a texto
+            for row in result['data']:
+                if isinstance(row.get('date_modified'), datetime):
+                    row['date_modified'] = row['date_modified'].isoformat()
+            # ------------------------------------
 
             return internal_response(True, result['data'], "Sesiones disponibles del paciente obtenidas exitosamente.")
         except Exception as err:

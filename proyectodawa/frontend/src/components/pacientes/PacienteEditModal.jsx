@@ -51,6 +51,7 @@ const PacienteEditModal = ({
         <DialogTitle>Editar Info. Médica de: {paciente?.per_names}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            
             <Controller
               name="pat_medical_conditions"
               control={control}
@@ -65,6 +66,38 @@ const PacienteEditModal = ({
                 />
               )}
             />
+            <FormControl fullWidth>
+              <InputLabel>Aplica terapia:</InputLabel>
+              <Controller
+                name="pat_code"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                  <Select {...field} label="Aplica terapia:">
+                      <MenuItem value={'SI'}>
+                        SI
+                      </MenuItem>
+                      <MenuItem value={'NO'}>
+                        NO
+                      </MenuItem>
+                    </Select>
+                )}
+              />
+            </FormControl>
+            {/* <Controller
+              name="pat_code"
+              control={control}
+              defaultValue=""
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  label="Aplica terapia:"
+                  fullWidth
+                  multiline
+                  rows={3}
+                />
+              )}
+            /> */}
             <Controller
               name="pat_allergies"
               control={control}

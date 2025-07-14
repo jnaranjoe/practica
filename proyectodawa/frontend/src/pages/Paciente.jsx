@@ -16,7 +16,7 @@ import {
   FormControl,
 } from '@mui/material';
 
-const apiUrl = import.meta.env.VITE_API_URL;
+const apiUrl = import.meta.env.VITE_API_URL3;
 
 const Paciente = () => {
   const [pacientes, setPacientes] = useState([]); // Almacena la lista de pacientes
@@ -293,6 +293,7 @@ const Paciente = () => {
       const pacienteParaActualizar = {
         pat_id: pacienteSeleccionado.pat_id,
         pat_medical_conditions: pacienteSeleccionado.pat_medical_conditions,
+        pat_code: pacienteSeleccionado.pat_code,
         pat_allergies: pacienteSeleccionado.pat_allergies,
         pat_blood_type: bloodTypeObject.btp_id,
         pat_emergency_contact_name: pacienteSeleccionado.pat_emergency_contact_name,
@@ -364,6 +365,13 @@ const Paciente = () => {
               label="Condiciones médicas"
               name="pat_medical_conditions"
               value={pacienteSeleccionado?.pat_medical_conditions || ''}
+              onChange={handleInputChange}
+              fullWidth
+            />
+            <TextField
+              label="Aplica terapia:"
+              name="pat_code"
+              value={pacienteSeleccionado?.pat_code || ''}
               onChange={handleInputChange}
               fullWidth
             />

@@ -4,6 +4,8 @@ services:
       context: ./serviceAdmin
       dockerfile: dockerfile
     image: service-admin-image
+    volumes:
+      - ./serviceAdmin/static:/app/static
     ports:
       - "5001:5001"
     networks:
@@ -17,6 +19,8 @@ services:
       context: ./serviceSeguridad
       dockerfile: dockerfile
     image: service-seguridad-image
+    volumes:
+      - ./serviceSeguridad/static:/app/static
     ports:
       - "5002:5002"
     networks:
@@ -30,6 +34,8 @@ services:
       context: ./servicePacientes
       dockerfile: dockerfile
     image: service-pacientes-image
+    volumes:
+      - ./servicePacientes/static:/app/static
     ports:
       - "5003:5003"
     networks:
@@ -51,7 +57,7 @@ services:
       "
     volumes:
       - ./db_data:/var/lib/postgresql/data
-      - ./backup.sql:/docker-entrypoint-initdb.d/init.sql
+      # - ./backup.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5433:5432"
     healthcheck:

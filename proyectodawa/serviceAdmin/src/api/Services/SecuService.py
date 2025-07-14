@@ -10,6 +10,7 @@ from ..Components.TokenComponent import TokenComponent
 from flask import request, make_response
 from ...utils.pdf.generate_pdf import generate_invoice_pdf
 from ...utils.smpt.smpt_officeUG import send_email_with_attachment
+from ...utils.general.file_handler import save_payment_proof
 
 #=====================================================================
 #Tabla PersonGenre
@@ -1800,17 +1801,16 @@ class DashboardWeeklySalesByDay(Resource):
 #Tabla Pagos y Abonos
 #=====================================================================
 class PaymentCreate(Resource):
-    @staticmethod
-    def post():
+    def post(self):
         try:
-            # --- Autenticación (esto ya funciona) ---
+            # --- Autenticación ---
             auth_header = request.headers.get('Authorization')
             if not auth_header or not auth_header.startswith('Bearer '):
                 return response_unauthorize()
+            # Se extrae el token, quitando la palabra "Bearer " del inicio
             token = auth_header.split(" ")[1]
             if not TokenComponent.Token_Validate(token):
                 return response_unauthorize()
-            # ----------------------------------------
             
             current_user_obj = TokenComponent.User(token)
             if current_user_obj and 'user_mail' in current_user_obj:
@@ -1820,24 +1820,27 @@ class PaymentCreate(Resource):
 
             HandleLogs.write_log(f"Usuario '{current_user_email}' ejecutando servicio para Crear Pago/Abono")
 
-            form_data = request.form
-            rq_data = form_data.to_dict()
+            # --- Manejo del Formulario y Archivo ---
+            rq_data = request.form.to_dict()
+            
+            image_path = None
+            if 'inp_proof_image' in request.files and request.files['inp_proof_image'].filename != '':
+                file = request.files['inp_proof_image']
+                image_path = save_payment_proof(file)
+            
+            rq_data['inp_proof_image_path'] = image_path
 
-            # --- NUEVO: Conversión y validación de tipos ---
-            # FormData envía todo como strings, hay que convertirlos a los tipos que el backend espera.
+            # --- Conversión de Tipos ---
             try:
                 rq_data['inp_invoice_id'] = int(rq_data['inp_invoice_id'])
                 rq_data['inp_payment_method_id'] = int(rq_data['inp_payment_method_id'])
                 rq_data['inp_amount'] = float(rq_data['inp_amount'])
-                # El campo de referencia y la fecha ya son strings, no necesitan conversión.
             except (KeyError, ValueError) as e:
-                # Si un campo falta (KeyError) o no se puede convertir (ValueError), es un error del request.
                 error_message = f"Error en los datos del formulario: campo faltante o tipo incorrecto. Detalle: {e}"
                 HandleLogs.write_error(error_message)
-                return response_error(error_message, 400) # Devolvemos un error 400 (Bad Request)
-            # --------------------------------------------------
+                return response_error(error_message, 400)
 
-            # La validación ahora recibirá los tipos de datos correctos
+            # --- Validación con Marshmallow ---
             new_request = PaymentReq()
             error_en_validacion = new_request.validate(rq_data)
             if error_en_validacion:
@@ -1845,7 +1848,7 @@ class PaymentCreate(Resource):
                 HandleLogs.write_error(message)
                 return response_error(message)
 
-            # El componente ahora recibirá los tipos de datos correctos
+            # --- Llamada al Componente ---
             resultado = PaymentComponent.create(rq_data, current_user_email)
             if resultado['result']:
                 return response_success(resultado['data'])
@@ -1853,7 +1856,6 @@ class PaymentCreate(Resource):
                 return response_error(resultado['message'])
                 
         except Exception as err:
-            # Si aún hay un error, el log te dirá exactamente qué pasó
             HandleLogs.write_error(err)
             return response_error(f"Error interno en el método: {err}")
 
@@ -1882,29 +1884,47 @@ class PaymentGetByInvoiceId(Resource):
             return response_error(f"Error en el método: {err}")
 
 class PaymentUpdate(Resource):
-    @staticmethod
-    def put():
+    def put(self):
         try:
-            token = request.headers.get('token')
-            if not token or not TokenComponent.Token_Validate(token):
+            # --- Autenticación Estándar ---
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return response_unauthorize()
+            token = auth_header.split(" ")[1]
+            if not TokenComponent.Token_Validate(token):
                 return response_unauthorize()
 
             current_user_obj = TokenComponent.User(token)
             if current_user_obj and 'user_mail' in current_user_obj:
                 current_user_email = current_user_obj['user_mail']
             else:
-                return response_error("No se pudo identificar el email del usuario desde el token.")
+                return response_error("No se pudo identificar el email del usuario.")
 
-            HandleLogs.write_log(f"Usuario '{current_user_email}' ejecutando servicio para Actualizar Pago/Abono")
-            rq_json = request.get_json()
-            new_request = PaymentIdReq()
-            error_en_validacion = new_request.validate(rq_json)
-            if error_en_validacion:
-                message = f"Error al validar el request -> {error_en_validacion}"
-                HandleLogs.write_error(message)
-                return response_error(message)
+            # --- 1. Obtener datos del formulario ---
+            payment_data = request.form.to_dict()
 
-            resultado = PaymentComponent.update(rq_json, current_user_email)
+            # --- 2. Manejar la subida de una nueva imagen (si se proporciona) ---
+            image_path = None
+            if 'inp_proof_image' in request.files and request.files['inp_proof_image'].filename != '':
+                file = request.files['inp_proof_image']
+                image_path = save_payment_proof(file)
+            
+            # Solo añadimos la ruta si se subió una nueva imagen
+            if image_path:
+                payment_data['inp_proof_image_path'] = image_path
+
+            # --- 3. Conversión de tipos y validación ---
+            try:
+                payment_data['inp_id'] = int(payment_data['inp_id'])
+                payment_data['inp_invoice_id'] = int(payment_data['inp_invoice_id'])
+                payment_data['inp_payment_method_id'] = int(payment_data['inp_payment_method_id'])
+                payment_data['inp_amount'] = float(payment_data['inp_amount'])
+            except (KeyError, ValueError) as e:
+                 return response_error(f"Error en los datos del formulario: campo faltante o tipo incorrecto. Detalle: {e}", 400)
+
+            HandleLogs.write_log(f"Actualizando pago ID: {payment_data['inp_id']}")
+            resultado = PaymentComponent.update(payment_data, current_user_email)
+            
             if resultado['result']:
                 return response_success(resultado['data'])
             else:

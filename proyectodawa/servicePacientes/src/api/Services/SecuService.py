@@ -1144,6 +1144,7 @@ class PatientUpdate(Resource):
             payload = {
                 'pat_id':rq_json['pat_id'],
                 'pat_medical_conditions':rq_json['pat_medical_conditions'],
+                'pat_code':rq_json['pat_code'],
                 'pat_allergies':rq_json['pat_allergies'],
                 'pat_blood_type':rq_json['pat_blood_type'],
                 'pat_emergency_contact_name':rq_json['pat_emergency_contact_name'],
@@ -1967,6 +1968,34 @@ class PatientAvailableSessions(Resource):
 
             HandleLogs.write_log(f"Consultando sesiones disponibles para el paciente ID: {patient_id}")
             resultado = SchedulingComponent.get_available_sessions_for_patient(patient_id)
+            
+            if resultado['result']:
+                return response_success(resultado['data'])
+            else:
+                return response_error(resultado['message'])
+        except Exception as err:
+            HandleLogs.write_error(err)
+            return response_error(f"Error en el método: {err}")
+
+class PatientAvailableSessionsWOState(Resource):
+    def get(self):
+        try:
+            # --- INICIO DEL BLOQUE CORREGIDO: Verificación de token estándar ---
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return response_unauthorize()
+
+            token = auth_header.split(" ")[1]
+            if not TokenComponent.Token_Validate(token):
+                return response_unauthorize()
+            # --- FIN DEL BLOQUE CORREGIDO ---
+
+            patient_id = request.args.get('patient_id')
+            if not patient_id:
+                return response_error("El parámetro 'patient_id' es requerido.")
+
+            HandleLogs.write_log(f"Consultando sesiones disponibles para el paciente ID: {patient_id}")
+            resultado = SchedulingComponent.get_available_sessions_for_patient_WOState(patient_id)
             
             if resultado['result']:
                 return response_success(resultado['data'])

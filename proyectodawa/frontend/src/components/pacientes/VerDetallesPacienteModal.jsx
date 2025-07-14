@@ -69,6 +69,12 @@ const VerDetallesPacienteModal = ({
                     {paciente.pat_medical_conditions}
                   </Typography>
                 )}
+                {paciente.pat_code && (
+                  <Typography>
+                    <strong>Aplica terapias:</strong>{" "}
+                    {paciente.pat_code}
+                  </Typography>
+                )}
                 {paciente.pat_allergies && (
                   <Typography>
                     <strong>Alergias:</strong> {paciente.pat_allergies}

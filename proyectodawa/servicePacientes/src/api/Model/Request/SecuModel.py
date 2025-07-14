@@ -159,6 +159,7 @@ class PatientReq(Schema):
 class PatientIdReq(Schema):
     pat_id = fields.Integer(required=True)
     pat_medical_conditions = fields.String(required=True)
+    pat_code = fields.String(required=True)
     pat_allergies = fields.String(required=True)
     pat_blood_type = fields.Integer(required=True)
     pat_emergency_contact_name = fields.String(required=True)

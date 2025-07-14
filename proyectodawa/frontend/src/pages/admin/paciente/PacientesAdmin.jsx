@@ -92,6 +92,7 @@ const PacientesAdmin = () => {
     const payload = {
       pat_id: selectedPaciente.pat_id,
       pat_medical_conditions: formData.pat_medical_conditions,
+      pat_code: formData.pat_code,
       pat_allergies: formData.pat_allergies,
       pat_blood_type: formData.pat_blood_type,
       pat_emergency_contact_name: formData.pat_emergency_contact_name,
